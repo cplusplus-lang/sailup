@@ -1,4 +1,4 @@
-#include <sailup/sample_library.hpp>
+#include <sailup/sailup.hpp>
 
 int factorial(int input) noexcept
 {
