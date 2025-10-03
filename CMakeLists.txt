@@ -59,6 +59,7 @@ add_subdirectory(configured_files)
 
 # Adding the src:
 add_subdirectory(src)
+add_subdirectory(apps)
 
 # Don't even look at tests if we're not top level
 if(NOT PROJECT_IS_TOP_LEVEL)
@@ -92,7 +93,7 @@ if(MSVC)
 endif()
 
 # set the startup project for the "play" button in MSVC
-set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT intro)
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT sailup)
 
 if(CMAKE_SKIP_INSTALL_RULES)
   return()
@@ -104,7 +105,7 @@ include(cmake/PackageProject.cmake)
 # we know we want to ship
 sailup_package_project(
   TARGETS
-  intro
+  sailup_bin
   sailup_options
   sailup_warnings
   # FIXME: this does not work! CK
