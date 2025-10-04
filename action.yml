@@ -1,0 +1,64 @@
+name: 'Setup Sailup'
+description: 'Install and run sailup to manage development tools across different operating systems'
+author: 'sailup-dev'
+
+inputs:
+  version:
+    description: 'Version of sailup to use (tag, branch, or "latest")'
+    required: false
+    default: 'latest'
+  cppcheck:
+    description: 'Install cppcheck static analyzer'
+    required: false
+    default: 'false'
+
+outputs:
+  sailup-path:
+    description: 'Path to the sailup executable'
+    value: ${{ steps.install-sailup.outputs.sailup-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout sailup repository
+      uses: actions/checkout@v3
+      with:
+        repository: 'sailup-dev/sailup'
+        ref: ${{ inputs.version == 'latest' && 'main' || inputs.version }}
+        path: '__sailup_temp'
+
+    - name: Setup CMake
+      uses: lukka/get-cmake@latest
+
+    - name: Build sailup
+      id: build-sailup
+      shell: bash
+      working-directory: __sailup_temp
+      run: |
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release
+
+        # Find the built executable
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          SAILUP_BIN="$(pwd)/build/apps/Release/sailup.exe"
+        else
+          SAILUP_BIN="$(pwd)/build/apps/sailup"
+        fi
+
+        echo "sailup-path=$SAILUP_BIN" >> $GITHUB_OUTPUT
+        echo "Sailup built at: $SAILUP_BIN"
+
+    - name: Install cppcheck
+      if: ${{ inputs.cppcheck == 'true' }}
+      shell: bash
+      run: |
+        echo "Installing cppcheck using sailup..."
+        ${{ steps.build-sailup.outputs.sailup-path }} --install-cppcheck
+
+    - name: Cleanup sailup temp directory
+      shell: bash
+      run: rm -rf __sailup_temp
+
+branding:
+  icon: 'package'
+  color: 'purple'
