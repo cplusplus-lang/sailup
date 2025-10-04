@@ -190,12 +190,50 @@ jobs:
         run: |
           cpack -C ${{matrix.build_type}} -G ${{matrix.package_generator}}
 
+      - name: Prepare release binary
+        if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.build_type == 'Release' && matrix.packaging_maintainer_mode == 'On' }}
+        id: prepare-binary
+        shell: bash
+        run: |
+          # Get version from tag
+          VERSION="${GITHUB_REF#refs/tags/}"
+
+          # Determine OS and arch
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            OS="linux"
+            ARCH="x64"
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            OS="macos"
+            if [ "$(uname -m)" == "arm64" ]; then
+              ARCH="arm64"
+            else
+              ARCH="x64"
+            fi
+          elif [ "${{ matrix.os }}" == "windows-latest" ]; then
+            OS="windows"
+            ARCH="x64"
+          fi
+
+          # Copy binary to release name
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            BINARY_NAME="sailup-${VERSION}-${OS}-${ARCH}.exe"
+            cp build/apps/Release/sailup.exe "$BINARY_NAME"
+          else
+            BINARY_NAME="sailup-${VERSION}-${OS}-${ARCH}"
+            cp build/apps/sailup "$BINARY_NAME"
+            chmod +x "$BINARY_NAME"
+          fi
+
+          echo "binary-name=$BINARY_NAME" >> $GITHUB_OUTPUT
+          echo "Created release binary: $BINARY_NAME"
+
       - name: Publish Tagged Release
         uses: softprops/action-gh-release@v2
         if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.package_generator != '' }}
         with:
           files: |
             build/*-*${{ matrix.build_type }}*-*.*
+            ${{ steps.prepare-binary.outputs.binary-name }}
 
 
       - name: Publish to codecov
