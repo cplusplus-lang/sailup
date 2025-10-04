@@ -34,12 +34,45 @@ int main(int argc, const char **argv)
     turn_based->excludes(loop_based);
     loop_based->excludes(turn_based);
 
+    bool install_cppcheck = false;  // NOLINT(misc-const-correctness)
+    app.add_flag("--install-cppcheck", install_cppcheck, "Install cppcheck using system package manager");
+
 
     CLI11_PARSE(app, argc, argv);
 
     if (show_version) {
       fmt::print("{}\n", sailup::cmake::project_version);
       return EXIT_SUCCESS;
+    }
+
+    if (install_cppcheck) {
+      spdlog::info("Installing cppcheck...");
+
+      // Detect OS and install cppcheck
+#if defined(_WIN32) || defined(_WIN64)
+      spdlog::info("Detected Windows OS, using chocolatey...");
+      // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe)
+      int result = std::system("choco install cppcheck -y");
+#elifdef __APPLE__
+      spdlog::info("Detected macOS, using Homebrew...");
+      // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe)
+      int result = std::system("brew install cppcheck");
+#elifdef __linux__
+      spdlog::info("Detected Linux OS, using apt...");
+      // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe)
+      int result = std::system("sudo apt update && sudo apt install -y cppcheck");
+#else
+      spdlog::error("Unsupported operating system for automatic cppcheck installation");
+      return EXIT_FAILURE;
+#endif
+
+      if (result == 0) {
+        spdlog::info("cppcheck installed successfully");
+        return EXIT_SUCCESS;
+      } else {
+        spdlog::error("Failed to install cppcheck (exit code: {})", result);
+        return EXIT_FAILURE;
+      }
     }
 
     fmt::print("factorial(0) = {}\n", factorial(0));
