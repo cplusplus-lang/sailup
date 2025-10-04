@@ -23,7 +23,7 @@ runs:
     - name: Checkout sailup repository
       uses: actions/checkout@v3
       with:
-        repository: 'sailup-dev/sailup'
+        repository: 'cplusplus-lang/sailup'
         ref: ${{ inputs.version == 'latest' && 'main' || inputs.version }}
         path: '__sailup_temp'
 
