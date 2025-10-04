@@ -1,9 +1,9 @@
-#ifndef SAMPLE_LIBRARY_HPP
-#define SAMPLE_LIBRARY_HPP
+#ifndef SAILUP_HPP
+#define SAILUP_HPP
 
-#include <sailup/sample_library_export.hpp>
+#include <sailup/sailup_api.hpp>
 
-[[nodiscard]] SAMPLE_LIBRARY_EXPORT int factorial(int) noexcept;
+[[nodiscard]] SAILUP_API int factorial(int) noexcept;
 
 [[nodiscard]] constexpr int factorial_constexpr(int input) noexcept
 {
