@@ -79,7 +79,7 @@ runs:
 
     - name: Checkout sailup repository (fallback)
       if: ${{ steps.download-binary.outputs.success != 'true' }}
-      uses: actions/checkout@v3
+      uses: actions/checkout@v5
       with:
         repository: 'cplusplus-lang/sailup'
         ref: ${{ inputs.version == 'latest' && 'main' || inputs.version }}
