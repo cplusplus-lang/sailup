@@ -15,26 +15,87 @@ inputs:
 outputs:
   sailup-path:
     description: 'Path to the sailup executable'
-    value: ${{ steps.install-sailup.outputs.sailup-path }}
+    value: ${{ steps.set-path.outputs.sailup-path }}
 
 runs:
   using: composite
   steps:
-    - name: Checkout sailup repository
+    - name: Detect OS and Architecture
+      id: detect-platform
+      shell: bash
+      run: |
+        # Detect OS
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          OS="linux"
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          OS="macos"
+        elif [ "$RUNNER_OS" == "Windows" ]; then
+          OS="windows"
+        else
+          echo "Unsupported OS: $RUNNER_OS"
+          exit 1
+        fi
+
+        # Detect architecture
+        ARCH=$(uname -m)
+        if [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "amd64" ]; then
+          ARCH="x64"
+        elif [ "$ARCH" == "aarch64" ] || [ "$ARCH" == "arm64" ]; then
+          ARCH="arm64"
+        fi
+
+        echo "os=$OS" >> $GITHUB_OUTPUT
+        echo "arch=$ARCH" >> $GITHUB_OUTPUT
+        echo "Detected platform: $OS-$ARCH"
+
+    - name: Download pre-built binary
+      id: download-binary
+      if: ${{ inputs.version != 'latest' && startsWith(inputs.version, 'v') }}
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        OS="${{ steps.detect-platform.outputs.os }}"
+        ARCH="${{ steps.detect-platform.outputs.arch }}"
+
+        if [ "$OS" == "windows" ]; then
+          BINARY_NAME="sailup-${VERSION}-${OS}-${ARCH}.exe"
+        else
+          BINARY_NAME="sailup-${VERSION}-${OS}-${ARCH}"
+        fi
+
+        DOWNLOAD_URL="https://github.com/cplusplus-lang/sailup/releases/download/${VERSION}/${BINARY_NAME}"
+
+        echo "Downloading sailup from: $DOWNLOAD_URL"
+
+        if curl -L -f -o "$BINARY_NAME" "$DOWNLOAD_URL"; then
+          chmod +x "$BINARY_NAME"
+          echo "success=true" >> $GITHUB_OUTPUT
+          echo "binary-path=$(pwd)/$BINARY_NAME" >> $GITHUB_OUTPUT
+          echo "Successfully downloaded binary"
+        else
+          echo "success=false" >> $GITHUB_OUTPUT
+          echo "Failed to download binary, will build from source"
+        fi
+
+    - name: Checkout sailup repository (fallback)
+      if: ${{ steps.download-binary.outputs.success != 'true' }}
       uses: actions/checkout@v3
       with:
         repository: 'cplusplus-lang/sailup'
         ref: ${{ inputs.version == 'latest' && 'main' || inputs.version }}
         path: '__sailup_temp'
 
-    - name: Setup CMake
+    - name: Setup CMake (fallback)
+      if: ${{ steps.download-binary.outputs.success != 'true' }}
       uses: lukka/get-cmake@latest
 
-    - name: Build sailup
+    - name: Build sailup from source (fallback)
+      if: ${{ steps.download-binary.outputs.success != 'true' }}
       id: build-sailup
       shell: bash
       working-directory: __sailup_temp
       run: |
+        echo "Building sailup from source..."
         cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release
 
@@ -45,17 +106,30 @@ runs:
           SAILUP_BIN="$(pwd)/build/apps/sailup"
         fi
 
-        echo "sailup-path=$SAILUP_BIN" >> $GITHUB_OUTPUT
+        echo "binary-path=$SAILUP_BIN" >> $GITHUB_OUTPUT
         echo "Sailup built at: $SAILUP_BIN"
+
+    - name: Set sailup path
+      id: set-path
+      shell: bash
+      run: |
+        if [ "${{ steps.download-binary.outputs.success }}" == "true" ]; then
+          SAILUP_PATH="${{ steps.download-binary.outputs.binary-path }}"
+        else
+          SAILUP_PATH="${{ steps.build-sailup.outputs.binary-path }}"
+        fi
+        echo "sailup-path=$SAILUP_PATH" >> $GITHUB_OUTPUT
+        echo "Using sailup at: $SAILUP_PATH"
 
     - name: Install cppcheck
       if: ${{ inputs.cppcheck == 'true' }}
       shell: bash
       run: |
         echo "Installing cppcheck using sailup..."
-        ${{ steps.build-sailup.outputs.sailup-path }} --install-cppcheck
+        ${{ steps.set-path.outputs.sailup-path }} --install-cppcheck
 
-    - name: Cleanup sailup temp directory
+    - name: Cleanup
+      if: ${{ steps.download-binary.outputs.success != 'true' }}
       shell: bash
       run: rm -rf __sailup_temp
 
