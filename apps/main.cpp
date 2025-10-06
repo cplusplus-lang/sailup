@@ -51,16 +51,49 @@ int main(int argc, const char **argv)
       // Detect OS and install cppcheck
 #if defined(_WIN32) || defined(_WIN64)
       spdlog::info("Detected Windows OS, using chocolatey...");
+
+      // Check if chocolatey is installed
       // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe)
-      int result = std::system("choco install cppcheck -y");
+      const int choco_check = std::system("choco --version >nul 2>&1");
+
+      if (choco_check != 0) {
+        spdlog::info("Chocolatey not found, installing chocolatey...");
+
+        // Install chocolatey using PowerShell
+        // This follows the official chocolatey installation method from setup-cpp
+        const char* install_choco_cmd =
+          "powershell -NoProfile -ExecutionPolicy Bypass -Command \""
+          "[System.Net.ServicePointManager]::SecurityProtocol = 3072; "
+          "iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))\"";
+
+        // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe)
+        int choco_install_result = std::system(install_choco_cmd);
+
+        if (choco_install_result != 0) {
+          spdlog::error("Failed to install chocolatey (exit code: {})", choco_install_result);
+          return EXIT_FAILURE;
+        }
+
+        spdlog::info("Chocolatey installed successfully");
+
+        // Refresh environment to make choco available
+        // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe)
+        std::system("refreshenv >nul 2>&1");
+      } else {
+        spdlog::info("Chocolatey is already installed");
+      }
+
+      // Install cppcheck using chocolatey
+      // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe)
+      const int result = std::system("choco install cppcheck -y");
 #elifdef __APPLE__
       spdlog::info("Detected macOS, using Homebrew...");
       // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe)
-      int result = std::system("brew install cppcheck");
+      const int result = std::system("brew install cppcheck");
 #elifdef __linux__
       spdlog::info("Detected Linux OS, using apt...");
       // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe)
-      int result = std::system("sudo apt update && sudo apt install -y cppcheck");
+      const int result = std::system("sudo apt update && sudo apt install -y cppcheck");
 #else
       spdlog::error("Unsupported operating system for automatic cppcheck installation");
       return EXIT_FAILURE;
@@ -69,10 +102,9 @@ int main(int argc, const char **argv)
       if (result == 0) {
         spdlog::info("cppcheck installed successfully");
         return EXIT_SUCCESS;
-      } else {
-        spdlog::error("Failed to install cppcheck (exit code: {})", result);
-        return EXIT_FAILURE;
       }
+      spdlog::error("Failed to install cppcheck (exit code: {})", result);
+      return EXIT_FAILURE;
     }
 
     fmt::print("factorial(0) = {}\n", factorial(0));

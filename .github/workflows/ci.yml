@@ -154,9 +154,6 @@ jobs:
           ccache: true
           clangtidy: ${{ env.CLANG_TIDY_VERSION }}
 
-
-          cppcheck: true
-
           gcovr: true
           opencppcoverage: true
 
@@ -168,6 +165,21 @@ jobs:
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: |
           cmake --build ./build --config ${{matrix.build_type}}
+
+      - name: Test --install-cppcheck flag
+        if: matrix.build_type == 'Release' && matrix.packaging_maintainer_mode == 'ON' && matrix.generator == 'Ninja Multi-Config'
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            ./build/apps/Release/sailup.exe --install-cppcheck
+          else
+            ./build/apps/Release/sailup --install-cppcheck
+          fi
+
+      - name: Verify cppcheck installation
+        if: matrix.build_type == 'Release' && matrix.packaging_maintainer_mode == 'ON' && matrix.generator == 'Ninja Multi-Config'
+        run: |
+          cppcheck --version
 
       - name: Unix - Test and coverage
         if: runner.os != 'Windows'
@@ -191,7 +203,7 @@ jobs:
           cpack -C ${{matrix.build_type}} -G ${{matrix.package_generator}}
 
       - name: Prepare release binary
-        if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.build_type == 'Release' && matrix.packaging_maintainer_mode == 'On' }}
+        if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.build_type == 'Release' && matrix.packaging_maintainer_mode == 'On' && (matrix.generator == 'Ninja Multi-Config' || matrix.generator == 'Visual Studio 17 2022') }}
         id: prepare-binary
         shell: bash
         run: |
@@ -214,13 +226,13 @@ jobs:
             ARCH="x64"
           fi
 
-          # Copy binary to release name
+          # Copy binary to release name (multi-config generators only)
           if [ "${{ runner.os }}" == "Windows" ]; then
             BINARY_NAME="sailup-${VERSION}-${OS}-${ARCH}.exe"
             cp build/apps/Release/sailup.exe "$BINARY_NAME"
           else
             BINARY_NAME="sailup-${VERSION}-${OS}-${ARCH}"
-            cp build/apps/sailup "$BINARY_NAME"
+            cp build/apps/Release/sailup "$BINARY_NAME"
             chmod +x "$BINARY_NAME"
           fi
 
