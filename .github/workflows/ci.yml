@@ -154,9 +154,6 @@ jobs:
           ccache: true
           clangtidy: ${{ env.CLANG_TIDY_VERSION }}
 
-
-          cppcheck: true
-
           gcovr: true
           opencppcoverage: true
 
@@ -168,6 +165,19 @@ jobs:
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: |
           cmake --build ./build --config ${{matrix.build_type}}
+
+      - name: Test --install-cppcheck flag
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            ./build/apps/${{matrix.build_type}}/sailup.exe --install-cppcheck
+          else
+            ./build/apps/sailup --install-cppcheck
+          fi
+
+      - name: Verify cppcheck installation
+        run: |
+          cppcheck --version
 
       - name: Unix - Test and coverage
         if: runner.os != 'Windows'
