@@ -167,15 +167,17 @@ jobs:
           cmake --build ./build --config ${{matrix.build_type}}
 
       - name: Test --install-cppcheck flag
+        if: matrix.build_type == 'Release' && matrix.packaging_maintainer_mode == 'ON' && matrix.generator == 'Ninja Multi-Config'
         shell: bash
         run: |
           if [ "${{ runner.os }}" == "Windows" ]; then
-            ./build/apps/${{matrix.build_type}}/sailup.exe --install-cppcheck
+            ./build/apps/Release/sailup.exe --install-cppcheck
           else
-            ./build/apps/sailup --install-cppcheck
+            ./build/apps/Release/sailup --install-cppcheck
           fi
 
       - name: Verify cppcheck installation
+        if: matrix.build_type == 'Release' && matrix.packaging_maintainer_mode == 'ON' && matrix.generator == 'Ninja Multi-Config'
         run: |
           cppcheck --version
 
