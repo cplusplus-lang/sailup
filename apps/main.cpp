@@ -54,7 +54,7 @@ int main(int argc, const char **argv)
 
       // Check if chocolatey is installed
       // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe)
-      int choco_check = std::system("choco --version >nul 2>&1");
+      const int choco_check = std::system("choco --version >nul 2>&1");
 
       if (choco_check != 0) {
         spdlog::info("Chocolatey not found, installing chocolatey...");
